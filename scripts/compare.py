@@ -10,7 +10,7 @@ from tqdm import tqdm
 import exactsympy as es
 
 
-lmax = 12
+lmax = 6
 mmax = 6
 
 # np.random.seed(0)
@@ -18,33 +18,35 @@ mmax = 6
 # gradu[2,2] = -gradu[0,0] - gradu[1,1]
 
 gradu = np.zeros((3,3))
-# gradu[0,0] = 0.5
-# gradu[1,1] = 0.5
-# gradu[2,2] = -1
-gradu[0,2] = 1
+gradu[0,0] = -0.5
+gradu[1,1] = -0.5
+gradu[2,2] = +1
+#gradu[0,2] = 1
 # gradu[0,1] = 1
+
+# gradu = np.array([[ 2.62396833e-04,  4.28081245e-04,  0.00000000e+00],
+#        [ 1.57583637e-04, -1.80731124e-04,  0.00000000e+00],
+#        [ 0.00000000e+00,  0.00000000e+00, -8.16657096e-05]])
 
 T = -10
 
 dt = 0.1
 tmax = 5
-x = [1.0 , 0.1, 1.0]
+x = [1.0 , 0.1, 0.0]
 
 ## Discrete
 
 disc = mc.solver(5000,1e-2)
-#disc.solve_constant(gradu,dt,tmax,x)
+disc.solve_constant(gradu,dt,tmax,x,method='Static')
 
 
 
-nsteps = int(tmax/dt)
-disc.a2 = np.zeros((nsteps,3,3))
-for i in tqdm(range(nsteps)):
-    disc.a2[i,...] = mc.a2calc(disc.n,disc.m)
-    disc.iterate(gradu,dt,x)
-    
-
-disc.t = np.arange(nsteps)*dt
+# nsteps = int(tmax/dt)
+# disc.a2 = np.zeros((nsteps,3,3))
+# for i in tqdm(range(nsteps)):
+#     disc.a2[i,...] = mc.a2calc(disc.n,disc.m)
+#     disc.iterate(gradu,dt,x)
+# disc.t = np.arange(nsteps)*dt
 
 ## Shtns implementation
 

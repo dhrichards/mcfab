@@ -1,5 +1,5 @@
 import numpy as np
-
+from .static import Static
 
 class solver:
     def __init__(self,npoints,tol=1e-2,inital_condition='isotropic'):
@@ -38,6 +38,27 @@ class solver:
         v = Wn -self.iota*(Dn - Dnn*n)
 
         return v
+    
+    def v_star_static(self,n,a2,a4):
+
+
+        Dstar = self.sachs(a2,a4,self.gradu,n)
+
+        Dn = np.einsum('pij,jp->ip',Dstar,n)
+        Wn = np.einsum('ij,jp->ip',self.W,n)
+
+        Dnn = np.einsum('pij,jp,ip->p',Dstar,n,n)
+        
+
+        v = Wn -self.iota*(Dn - Dnn*n)
+
+        return v
+
+
+
+
+
+
 
 
     def GBM(self,n,m):
@@ -46,11 +67,11 @@ class solver:
         Dn = np.einsum('ij,jp->ip',self.D,n)
 
         Dnn = np.einsum('ij,jp,ip->p',self.D,n,n)
-        Dstar = 5*(np.einsum('ip,ip->p',Dn,Dn) - Dnn**2)/self.D2
+        Def = 5*(np.einsum('ip,ip->p',Dn,Dn) - Dnn**2)/self.D2
 
         a2 = a2calc(n,m)
         a4 = a4calc(n,m)
-        return Dstar - 5*(np.einsum('ij,ik,kj',self.D,self.D,a2) - np.einsum('ij,kl,ijkl',self.D,self.D,a4))/self.D2
+        return Def - 5*(np.einsum('ij,ik,kj',self.D,self.D,a2) - np.einsum('ij,kl,ijkl',self.D,self.D,a4))/self.D2
 
 
     def ImprovedEuler(self,n,m,dt):
@@ -70,6 +91,29 @@ class solver:
         m /= np.mean(m)
 
         return n,m
+    
+
+    def StaticImprovedEuler(self,n,m,dt,a2,a4):
+        """Variation of the improved Euler method for SDE
+        https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_method_(SDE)"""
+
+
+        
+        k1 = self.v_star_static(n,a2,a4)*dt 
+        k2 = self.v_star_static(n+k1,a2,a4)*dt 
+        
+        m1 = m*(1+self.beta*self.GBM(n,m)*dt)
+        m2 = m*(1+self.beta*self.GBM(n+k1,m)*dt)
+
+        n = n + 0.5*(k1+k2) + + self.weiner(n,dt,np.sqrt(self.lamb))
+        m = 0.5*(m1+m2)
+
+        n = n/np.linalg.norm(n,axis=0)
+        m /= np.mean(m)
+
+        return n,m
+
+
 
     def ForwardEuler(self,n,m,dt):
         # Forward Euler method for SDE
@@ -101,9 +145,14 @@ class solver:
         self.nsteps = len(self.t)
 
         self.gradu_measures(gradu)
+        
         self.iota = x[0]
         self.lamb = x[1]*self.effectiveSR
         self.beta = x[2]*self.effectiveSR
+
+        if method == 'Static':
+            self.sachs = Static()
+
 
     
 
@@ -119,6 +168,8 @@ class solver:
                 self.n,self.m = self.ImprovedEuler(self.n,self.m,dt)
             elif method == 'ForwardEuler':
                 self.n,self.m = self.ForwardEuler(self.n,self.m,dt)
+            elif method == 'Static':
+                self.n,self.m = self.StaticImprovedEuler(self.n,self.m,dt,self.a2[i,...],self.a4[i,...])
             else:
                 print('Method not implemented')
                 return
@@ -248,3 +299,4 @@ def isotropic(npoints):
     best = np.argmin(std_dev)
 
     return n[:,:,best]
+

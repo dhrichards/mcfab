@@ -14,9 +14,12 @@ setup(
     license='MIT',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=['meso_mc'],
+    packages=['meso_fab_mc'],
     install_requires=['numpy',                     
                       ],
+    extras_require = {
+        'plotting': ['matplotlib', 'cartopy','scipy']
+                    },
 
     classifiers=[
         'Intended Audience :: Science/Research',
