@@ -18,7 +18,7 @@ setup(
     install_requires=['numpy',                     
                       ],
     extras_require = {
-        'plotting': ['matplotlib', 'cartopy','scipy']
+        'harmonics': ['shtns','scipy']
                     },
 
     classifiers=[
