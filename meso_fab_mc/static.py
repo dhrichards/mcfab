@@ -4,10 +4,11 @@ I = np.eye(3)
 
 
 class Static:
-    def __init__(self,gamma=1,beta=0.04,eta=1):
+    def __init__(self,gamma=1,beta=0.04,eta=1,alpha=0.04):
         self.gamma = gamma
         self.beta = beta
         self.eta = eta
+        self.alpha=alpha
 
         self.xi1 = (self.gamma + 1)/(4*self.gamma -1) -1/self.beta
         self.xi2 = 1/self.beta -1
@@ -27,6 +28,11 @@ class Static:
 
 
         return self.Dstar
+    
+
+    def C(self):
+        C = (1-self.alpha)*self.D + self.alpha*self.S/(2*self.eta)
+        return C[np.newaxis,:,:]
 
 
 
@@ -47,15 +53,15 @@ class Static:
 
     def fluidity_star(self,n):
         # Fluidity* tensor
-        Fstar = np.zeros((n.shape[1],3,3,3,3))
+        Fstar = np.zeros((n.shape[0],3,3,3,3))
         for i in range(3):
             for j in range(3):
                 for k in range(3):
                     for l in range(3):
                         Fstar[:,i,j,k,l] = (self.beta/(2*self.eta))*(I[i,k]*I[k,l] \
-                        + 2*self.xi1*n[i,:]*n[j,:]*n[k,:]*n[l,:] \
-                        + self.xi2*(I[i,k]*n[l,:]*n[j,:] + I[j,l]*n[i,:]*n[k,:]) \
-                        + self.xi3*n[k,:]*n[l,:]*I[i,j]) \
+                        + 2*self.xi1*n[:,i]*n[:,j]*n[:,k]*n[:,l] \
+                        + self.xi2*(I[i,k]*n[:,l]*n[:,j] + I[j,l]*n[:,i]*n[:,k]) \
+                        + self.xi3*n[:,k]*n[:,l]*I[i,j]) \
                         
 
         return Fstar

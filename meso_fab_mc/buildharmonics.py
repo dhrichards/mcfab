@@ -11,7 +11,7 @@ class BuildHarmonics:
         $f^l_m = \frac{1}{N}\sum_i^N w_i \bar{Y}^l_m(\theta_i,\phi_i)$
         
         Input:
-        x: 3xnpoints array of xyz coordinates
+        x: nx3 points array of xyz coordinates
         w: npoints array of mass values
         L: maximum spherical harmonic degree
         mmmax: maximum spherical harmonic order'''
@@ -23,8 +23,8 @@ class BuildHarmonics:
         self.sh = shtns.sht(L,self.mmax)
         self.f = self.sh.spec_array()
 
-        self.theta = np.arccos(x[2,:])
-        self.phi = np.arctan2(x[1,:],x[0,:])
+        self.theta = np.arccos(x[:,2])
+        self.phi = np.arctan2(x[:,1],x[:,0])
 
 
         for l in range(L+1):

@@ -1,7 +1,7 @@
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
-import meso_mc as mc
+import meso_fab_mc as mc
 from tqdm import tqdm
 
 
@@ -16,14 +16,14 @@ gradu[2,2] = -gradu[0,0] - gradu[1,1]
 # gradu[0,2] = 1
 # gradu[0,1] = 1
 
-dt = 0.1
-tmax = 2
-x = [0.0 , 1.0, 0.0]
+dt = 0.01
+tmax = 20
+x = [0.0 , 0.01, 0.0]
 
 ## Discrete
 
 disc = mc.solver(10000,1e-2,inital_condition='single_max')
-disc.solve_constant(gradu,dt,tmax,x,method='ImprovedEuler')
+disc.solve_constant(gradu,dt,tmax,x,integrator='ForwardEuler')
 
 
 # Plotting

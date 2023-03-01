@@ -8,9 +8,10 @@ import speccaf.solver as solver
 from meso_fab_mc import meso_mc as mc
 from tqdm import tqdm
 import exactsympy as es
+import closuresvect as closure
 
 
-lmax = 6
+lmax = 12
 mmax = 6
 
 # np.random.seed(0)
@@ -18,26 +19,66 @@ mmax = 6
 # gradu[2,2] = -gradu[0,0] - gradu[1,1]
 
 gradu = np.zeros((3,3))
-gradu[0,0] = -0.5
-gradu[1,1] = -0.5
-gradu[2,2] = +1
-#gradu[0,2] = 1
-# gradu[0,1] = 1
+gradu[0,0] = 0.5
+gradu[1,1] = 0.5
+gradu[2,2] = -1
+# gradu[0,2] = 1
+#gradu[0,1] = 2
 
 # gradu = np.array([[ 2.62396833e-04,  4.28081245e-04,  0.00000000e+00],
 #        [ 1.57583637e-04, -1.80731124e-04,  0.00000000e+00],
 #        [ 0.00000000e+00,  0.00000000e+00, -8.16657096e-05]])
 
-T = -10
 
-dt = 0.1
-tmax = 5
-x = [1.0 , 0.1, 0.0]
 
+dt = 2
+tmax = 10
+T = -5
+x = [1,0.5,0]
+#x=None
 ## Discrete
 
-disc = mc.solver(5000,1e-2)
-disc.solve_constant(gradu,dt,tmax,x,method='Static')
+disc = mc.solver(5000)
+disc.solve_constant(gradu,dt,tmax,x)
+
+
+##A2 evolution
+def da2(a2,gradu,x):
+    D = 0.5*(gradu + gradu.T)
+    W = 0.5*(gradu - gradu.T)
+
+    D2 = np.einsum('ij,ji',D,D)
+    effectiveSR = np.sqrt(0.5*D2)
+
+    iota = x[0]
+    lamb = x[1]*effectiveSR
+
+
+
+
+    a4 = closure.compute_closure(a2)
+        
+
+    da2 = np.einsum('ik,kj->ij',W,a2) - np.einsum('ik,kj->ij',a2,W)\
+          -iota*(np.einsum('ik,kj->ij',D,a2) + np.einsum('ik,kj->ij',a2,D)\
+                 - 2*np.einsum('ijkl,kl->ij',a4,D)) + lamb*(np.eye(3) - 3*a2)
+    
+    return da2
+
+
+def a2evolution(gradu,dt,tmax,x=None):
+    nt = disc.nsteps
+    a2 = np.zeros((nt,3,3))
+
+    a2[0,...] = np.eye(3)/3
+
+    for i in range(nt-1):
+        a2[i+1,...] = a2[i,...] + dt*da2(a2[i,...],gradu,x)
+
+    return a2
+
+
+A = a2evolution(gradu,dt,tmax,x)
 
 
 
@@ -79,7 +120,7 @@ for i in range(nt-1):
 
 
     #Update fabric with dt T[i] gradu[i]
-    rk = solver.rk3iterate(T, gradu, sh,x=x)
+    rk = solver.rk3iterate(T, gradu, sh,x=[x[0],x[1]/2,x[2]])
     f[i+1,:] = rk.iterate(f[i,:], dt)
 
     # Update orientation tensors
@@ -88,20 +129,28 @@ for i in range(nt-1):
 # eigvals_old = np.linalg.eigvals(a2)
 
 
-plt.plot(sc.t,a2_sc[:,0,0],'r')
-plt.plot(sc.t,a2_sc[:,1,1],'g')
-plt.plot(sc.t,a2_sc[:,2,2],'b')
-#plt.plot(sc.t,a2_sc[:,0,2],'k')
+# plt.plot(sc.t,a2_sc[:,0,0],'r')
+# plt.plot(sc.t,a2_sc[:,1,1],'g')
+# plt.plot(sc.t,a2_sc[:,2,2],'b')
+# plt.plot(sc.t,a2_sc[:,0,2],'k')
 
-plt.plot(sc.t,a2[:,0,0],'r--',linewidth=2)
+plt.plot(disc.t,A[:,0,0],'r',label='a2 evolution')
+plt.plot(disc.t,A[:,1,1],'g')
+plt.plot(disc.t,A[:,2,2],'b')
+#plt.plot(disc.t,A[:,0,2],'k')
+
+plt.plot(sc.t,a2[:,0,0],'r--',linewidth=2,label='SpecCAF')
 plt.plot(sc.t,a2[:,1,1],'g--',linewidth=2)
 plt.plot(sc.t,a2[:,2,2],'b--',linewidth=2)
 #plt.plot(sc.t,a2[:,0,2],'k--',linewidth=2)
 
-plt.plot(disc.t,disc.a2[:,0,0],'r:')
+plt.plot(disc.t,disc.a2[:,0,0],'r:',label='Discrete')
 plt.plot(disc.t,disc.a2[:,1,1],'g:')
 plt.plot(disc.t,disc.a2[:,2,2],'b:')
 #plt.plot(disc.t,disc.a2[:,0,2],'k:')
 
-print(disc.a2[1,...].diagonal().sum())
-print(disc.a2[0,...].diagonal().sum())
+plt.legend()
+
+plt.ylim(-0.1,1)
+
+
