@@ -43,7 +43,7 @@ class Static:
             for j in range(3):
                 for k in range(3):
                     for l in range(3):
-                        F[i,j,k,l] = (self.beta/(2*self.eta))*(I[i,k]*I[k,l] \
+                        F[i,j,k,l] = (self.beta/(2*self.eta))*(I[i,k]*I[j,l] \
                         + 2*self.xi1*A4[i,j,k,l] \
                         + self.xi2*(I[i,k]*A2[l,j] + I[j,l]*A2[i,k]) \
                         + self.xi3*A2[k,l]*I[i,j]) \
@@ -58,7 +58,7 @@ class Static:
             for j in range(3):
                 for k in range(3):
                     for l in range(3):
-                        Fstar[:,i,j,k,l] = (self.beta/(2*self.eta))*(I[i,k]*I[k,l] \
+                        Fstar[:,i,j,k,l] = (self.beta/(2*self.eta))*(I[i,k]*I[j,l] \
                         + 2*self.xi1*n[:,i]*n[:,j]*n[:,k]*n[:,l] \
                         + self.xi2*(I[i,k]*n[:,l]*n[:,j] + I[j,l]*n[:,i]*n[:,k]) \
                         + self.xi3*n[:,k]*n[:,l]*I[i,j]) \
