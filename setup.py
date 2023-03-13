@@ -18,7 +18,8 @@ setup(
     install_requires=['numpy',                     
                       ],
     extras_require = {
-        'harmonics': ['shtns','scipy']
+        'harmonics': ['shtns','scipy'],
+        'jax': ['jax','jaxlib']
                     },
 
     classifiers=[
