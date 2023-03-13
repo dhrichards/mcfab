@@ -149,7 +149,6 @@ class solver:
             return
     
 
-        self.n,self.m = self.ImprovedEuler(self.n,self.m,dt)
         self.add_delete()
 
         self.a2 = a2calc(self.n,self.m)
