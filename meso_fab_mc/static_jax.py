@@ -29,7 +29,7 @@ def fluidity_star(n,gamma,beta,eta):
     xi = xi_calc(gamma,beta,eta)
     # does this need masses?
     F = xi[0]*(jnp.einsum('ik,jl->ijkl',I,I) \
-        + 2*xi[1]*jnp.einsum('pi,pj,pk,pl->pijkl'n,n,n,n) \
+        + 2*xi[1]*jnp.einsum('pi,pj,pk,pl->pijkl',n,n,n,n) \
         + xi[2]*(jnp.einsum('ik,pl,pj->pijkl',I,n,n) \
                  + jnp.einsum('pi,pk,jl->pijkl',n,n,I)) \
         + xi[3]*jnp.einsum('pk,pl,ij->pijkl',n,n,I))

@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import numpy as np
 import jax
-import .static_jax as static 
+from .static_jax import * 
 
 
 
@@ -125,7 +125,7 @@ def add_delete(n,m):
 
 
 
-def ImprovedEuler(n,m,gradu,x,dt,key):
+def ImprovedEuler(n,m,gradu,Dstar,x,dt,key):
     """Variation of the improved Euler method for SDE
     https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_method_(SDE)"""
     
@@ -161,88 +161,103 @@ def time(dt,tmax):
     nsteps = len(t)
     return t,nsteps
 
+def iterate_taylor(nm,p):
+    n,m = nm
 
-def solve_constant(npoints,gradu,dt,tmax,x):
+    gradu,x,dt,key = p
+    
+
+    D = 0.5*(gradu + gradu.T)
+    Dstar = D[jnp.newaxis,:,:]
+
+    n,m = ImprovedEuler(n,m,gradu,Dstar,x,dt,key)
+    n,m = add_delete(n,m)
+    
+    return (n,m),nm
+
+def iterate_static(nm,p):
+    n,m = nm
+
+    a2 = a2calc(n,m)
+    a4 = a4calc(n,m)
+
+    gradu,x,dt,key = p
+    D = 0.5*(gradu + gradu.T)
+
+    Dstar = Dstarcalc(n,D,a2,a4)
+
+    n,m = ImprovedEuler(n,m,gradu,Dstar,x,dt,key)
+    n,m = add_delete(n,m)
+    
+    return (n,m),nm
+
+def iterate_c(nm,p):
+    n,m = nm
+
+    a2 = a2calc(n,m)
+    a4 = a4calc(n,m)
+
+    gradu,x,dt,key = p
+    D = 0.5*(gradu + gradu.T)
+
+    Dstar = Ccalc(D,)
+
+    n,m = ImprovedEuler(n,m,gradu,Dstar,x,dt,key)
+    n,m = add_delete(n,m)
+    
+    return (n,m),nm
+
+
+def tile_arrays(gradu,dt,tmax,x):
+
+    t,nsteps = time(dt,tmax)
+    # Tile arrays to be nsteps long
+    gradu_tile = jnp.tile(gradu,(nsteps,1,1))
+    dt_tile = jnp.tile(dt,(nsteps,))
+    x_tile = jnp.tile(x,(nsteps,1))
+
+    return gradu_tile,dt_tile,x_tile
+
+
+def solve(npoints,gradu,dt,x):
+    """Solve the SDE using the lax scan function
+    npoints is the number of particles
+    gradu is the velocity gradient (nsteps,3,3))
+    dt is the time step (nsteps,)
+    x is the non-dimensional parameter vector (nsteps,3)"""
 
     m = jnp.ones(npoints)
     n = random(npoints)
+    init_val = (n,m)
     
-    t,nsteps = time(dt,tmax)
+    nsteps = gradu.shape[0]
 
-    init_val = (n,m,gradu,x,dt)
-
-
+    # Split random key into nsteps keys
     key = jax.random.PRNGKey(0)
     keys = jax.random.split(key,nsteps)
 
-    # for i in range(1,nsteps):
-            
-    #         n,m = ImprovedEuler(n,m,gradu,x,dt)
-            
-    #         #n,m = add_delete(n,m)
+    final, nm_vec = jax.lax.scan(iterate_taylor,init_val,(gradu,x,dt,keys))
+    return nm_vec
 
-    def iterate(prev_val,key):
-        n,m,gradu,x,dt = prev_val
-
-        n,m = ImprovedEuler(n,m,gradu,x,dt,key)
-        n,m = add_delete(n,m)
-        
-        return (n,m,gradu,x,dt),prev_val
-    
-
-    final, vals = jax.lax.scan(iterate,init_val,keys)
-
-    n = vals[0]
-    m = vals[1]
-
-
-    return n,m
-
-
-    # def iterate(i,val):
-
-    #     n = val[0]
-    #     m = val[1]
-    #     a2 = val[2]
-    #     a4 = val[3]
-    #     gradu = val[4]
-    #     x = val[5]
-    #     dt = val[6]
-
-    #     n,m = ImprovedEuler(n,m,gradu,x,dt)
-        
-    #     #n,m = add_delete(n,m)
-
-    #     a2 = a2.at[i,:,:].set(a2calc(n,m))
-    #     a4 = a4.at[i,:,:].set(a4calc(n,m))
-
-    #     return (n,m,a2,a4,gradu,x,dt)
-
-
-    # val = jax.lax.fori_loop(1,nsteps,iterate,\
-    #                   (n,m,a2,a4,gradu,x,dt))
-    
-    # n = val[0]
-    # m = val[1]
-    # a2 = val[2]
-    # a4 = val[3]
 
 
 
         
 
 
-def params(T,effectiveSR):
+def params(T,effectiveSR=1):
 
 
     iota = 0.0259733*T + 1.95268104
     lambtilde = (0.00251776*T + 0.41244777)
     betatilde = (0.35182521*T + 12.17066493)
-    
+
     lamb = lambtilde*effectiveSR
     beta = betatilde*effectiveSR
 
-    return jnp.array([iota,lamb,beta])
+    x = jnp.array([iota,lamb,beta])
+    
+    return x.T
 
 
 
