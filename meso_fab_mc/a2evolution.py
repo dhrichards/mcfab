@@ -1,11 +1,11 @@
-import numpy as np
-
+import jax.numpy as jnp
+import jax
 
 def Selm(D,A2,A4,gamma,beta,eta):
     # Stress tensor
      
     F = fluidity(A2,A4,gamma,beta,eta)
-    S = np.linalg.tensorsolve(F,D)
+    S = jnp.linalg.tensorsolve(F,D)
 
     return S
     
@@ -16,7 +16,7 @@ def xi_calc(gamma,beta,eta):
         xi2 = 1/beta -1
         xi3 = -(2/3)*((gamma+2)/(4*gamma-1)-1)
 
-        return np.array([xi0,xi1,xi2,xi3])
+        return jnp.array([xi0,xi1,xi2,xi3])
 
 
 def Celm(D,A2,A4,alpha,gamma=1,beta=0.04,eta=1,ks=10):
@@ -29,46 +29,83 @@ def Celm(D,A2,A4,alpha,gamma=1,beta=0.04,eta=1,ks=10):
 
 def fluidity(A2,A4,gamma,beta,eta):
     # Fluidity Tensor 
-    I = np.eye(3)
+    I = jnp.eye(3)
     xi = xi_calc(gamma,beta,eta)
 
-    F = xi[0]*(np.einsum('ik,jl->ijkl',I,I) \
+    F = xi[0]*(jnp.einsum('ik,jl->ijkl',I,I) \
         + 2*xi[1]*A4 \
-        + xi[2]*(np.einsum('ik,lj->ijkl',I,A2) + np.einsum('ik,jl->ijkl',A2,I)) \
-        + xi[3]*np.einsum('kl,ij->ijkl',A2,I))
+        + xi[2]*(jnp.einsum('ik,lj->ijkl',I,A2) + jnp.einsum('ik,jl->ijkl',A2,I)) \
+        + xi[3]*jnp.einsum('kl,ij->ijkl',A2,I))
     return F
     
 
 def da2(a2,a4,gradu,x):
-
     
-    I = np.eye(3)
+    I = jnp.eye(3)
 
     D = 0.5*(gradu + gradu.T)
     W = 0.5*(gradu - gradu.T)
 
-    C = Celm(D,a2,a4,x[3])
+    C = Celm(D,a2,a4,x[3],ks=x[4])
 
-    normC = np.sqrt(np.einsum('ij,ji->',C,C))
+    normC = jnp.sqrt(jnp.einsum('ij,ji->',C,C))
 
 
-    da2 = np.einsum('ik,kj->ij',W,a2) - np.einsum('ik,kj->ij',a2,W)\
-        -x[0]*(np.einsum('ik,kj->ij',C,a2) + np.einsum('ik,kj->ij',a2,C)\
-                -2*np.einsum('ijkl,kl->ij',a4,C))\
+    da2 = jnp.einsum('ik,kj->ij',W,a2) - jnp.einsum('ik,kj->ij',a2,W)\
+        -x[0]*(jnp.einsum('ik,kj->ij',C,a2) + jnp.einsum('ik,kj->ij',a2,C)\
+                -2*jnp.einsum('ijkl,kl->ij',a4,C))\
         + x[1]*(I - 3*a2)*normC
-    
-
-
-
-
-    
     return da2
+
+
+def iterate(fabric,p):
+    a2,a4 = fabric
+    gradu,x,dt = p
+
+    I = jnp.eye(3)
+
+    D = 0.5*(gradu + gradu.T)
+    W = 0.5*(gradu - gradu.T)
+
+    C = Celm(D,a2,a4,x[3],ks=x[4])
+
+    normC = jnp.sqrt(jnp.einsum('ij,ji->',C,C))
+
+
+    L = jnp.einsum('ik,jl->ijkl',W,I) - jnp.einsum('ik,lj->ijkl',I,W) \
+        - x[0]*(jnp.einsum('ik,jl->ijkl',C,I) + jnp.einsum('ik,lj->ijkl',I,C))
+    
+    LHS = jnp.einsum('ik,jl->ijkl',I,I) - dt*L
+
+    RHS = a2 +dt*(-x[0]*2*jnp.einsum('ijkl,kl->ij',a4,C)\
+          + x[1]*(I - 3*a2)*normC)
+    
+    a2 = jnp.linalg.tensorsolve(LHS,RHS)
+    a4 = IBOF_closure(a2)
+
+    return (a2,a4),fabric
+
+
+def iterate_rk4(fabric,p):
+    # Iterate using a 4th order Runge-Kutta method
+    a2,a4 = fabric
+    gradu,x,dt = p
+
+    k1 = dt*da2(a2,a4,gradu,x)
+    k2 = dt*da2(a2+0.5*k1,a4,gradu,x)
+    k3 = dt*da2(a2+0.5*k2,a4,gradu,x)
+    k4 = dt*da2(a2+k3,a4,gradu,x)
+
+    a2 = a2 + (k1 + 2*k2 + 2*k3 + k4)/6
+    a4 = IBOF_closure(a2)
+
+    return (a2,a4),fabric
 
 
 
 
 def time(dt,tmax):
-    t  = np.arange(0,tmax,dt)
+    t  = jnp.arange(0,tmax,dt)
     nsteps = len(t)
     return t,nsteps
 
@@ -76,9 +113,9 @@ def tile_arrays(gradu,dt,tmax,x):
 
     t,nsteps = time(dt,tmax)
     # Tile arrays to be nsteps long
-    gradu_tile = np.tile(gradu,(nsteps,1,1))
-    dt_tile = np.tile(dt,(nsteps,))
-    x_tile = np.tile(x,(nsteps,1))
+    gradu_tile = jnp.tile(gradu,(nsteps,1,1))
+    dt_tile = jnp.tile(dt,(nsteps,))
+    x_tile = jnp.tile(x,(nsteps,1))
 
     return gradu_tile,dt_tile,x_tile
 
@@ -90,32 +127,25 @@ def solve(gradu,dt,x):
     dt is the time step (nsteps,)
     x is the non-dimensional parameter vector (nsteps,3)"""
 
-    a2 = np.eye(3)/3
+    a2 = jnp.eye(3)/3
     a4 = IBOF_closure(a2)
 
-    nsteps = gradu.shape[0]
+    fabric_0 = (a2,a4)
 
 
-    A2 = np.zeros((nsteps,3,3))
-    A4 = np.zeros((nsteps,3,3,3,3))
+    final,fabric = jax.lax.scan(iterate_rk4,fabric_0,(gradu,x,dt))
 
-    A2[0,...] = a2
-    A4[0,...] = a4
-
-    for i in range(nsteps-1):
-        A2[i+1,...] = A2 + dt*da2(A2[i,...],A4[i,...],gradu[i,...],x[i,...])
-        A4[i+1,...] = IBOF_closure(A2[i+1,...])
-    return (A2,A4)
-
+    return fabric
 
 
 def params(T):
-    iota = np.ones_like(T)
-    lambtilde = 2e-3 * np.exp(np.log(10)*T/10)
-    betatilde = np.zeros_like(T)
-    alpha = 0.06*np.ones_like(T)
+    iota = jnp.ones_like(T)
+    lambtilde = 2e-3 * jnp.exp(jnp.log(10)*T/10)
+    betatilde = jnp.zeros_like(T)
+    alpha = 0.06*jnp.ones_like(T)
+    ks = 10*jnp.ones_like(T)
 
-    x = np.array([iota,lambtilde,betatilde,alpha])
+    x = jnp.array([iota,lambtilde,betatilde,alpha,ks])
     
     return x.T
 
@@ -137,7 +167,6 @@ def IBOF_closure(a):
        Journal of Rheology 46(1):169-194,
        https://doi.org/10.1122/1.1423312
     """
-    assert_fot_properties(a)
 
     # second invariant
     II = (
@@ -150,14 +179,14 @@ def IBOF_closure(a):
     )
 
     # third invariant
-    III = np.linalg.det(a)
+    III = jnp.linalg.det(a)
 
     # coefficients from Chung & Kwon paper
-    C1 = np.zeros((1, 21))
+    C1 = jnp.zeros((1, 21))
 
-    C2 = np.zeros((1, 21))
+    C2 = jnp.zeros((1, 21))
 
-    C3 = np.array(
+    C3 = jnp.array(
         [
             [
                 0.24940908165786e2,
@@ -185,7 +214,7 @@ def IBOF_closure(a):
         ]
     )
 
-    C4 = np.array(
+    C4 = jnp.array(
         [
             [
                 -0.497217790110754e0,
@@ -213,9 +242,9 @@ def IBOF_closure(a):
         ]
     )
 
-    C5 = np.zeros((1, 21))
+    C5 = jnp.zeros((1, 21))
 
-    C6 = np.array(
+    C6 = jnp.array(
         [
             [
                 0.234146291570999e2,
@@ -244,7 +273,7 @@ def IBOF_closure(a):
     )
 
     # build matrix of coefficients by stacking vectors
-    C = np.vstack((C1, C2, C3, C4, C5, C6))
+    C = jnp.vstack((C1, C2, C3, C4, C5, C6))
 
     # compute parameters as fith order polynom based on invariants
     beta3 = (
@@ -364,35 +393,26 @@ def IBOF_closure(a):
     )
 
     # second order identy matrix
-    delta = np.eye(3)
+    delta = jnp.eye(3)
 
     # generate fourth order tensor with parameters and tensor algebra
     return (
-        symm(np.einsum("..., ij,kl->...ijkl", beta1, delta, delta))
-        + symm(np.einsum("..., ij, ...kl-> ...ijkl", beta2, delta, a))
-        + symm(np.einsum("..., ...ij, ...kl -> ...ijkl", beta3, a, a))
+        symm(jnp.einsum("..., ij,kl->...ijkl", beta1, delta, delta))
+        + symm(jnp.einsum("..., ij, ...kl-> ...ijkl", beta2, delta, a))
+        + symm(jnp.einsum("..., ...ij, ...kl -> ...ijkl", beta3, a, a))
         + symm(
-            np.einsum("..., ij, ...km, ...ml -> ...ijkl", beta4, delta, a, a)
+            jnp.einsum("..., ij, ...km, ...ml -> ...ijkl", beta4, delta, a, a)
         )
         + symm(
-            np.einsum("..., ...ij, ...km, ...ml -> ...ijkl", beta5, a, a, a)
+            jnp.einsum("..., ...ij, ...km, ...ml -> ...ijkl", beta5, a, a, a)
         )
         + symm(
-            np.einsum(
+            jnp.einsum(
                 "..., ...im, ...mj, ...kn, ...nl -> ...ijkl", beta6, a, a, a, a
             )
         )
     )
 
-def assert_fot_properties(a):
-    """Assert properties of second order input tensor.
-    Parameters
-    ----------
-    a : 3x3 numpy array
-        Second order fiber orientation tensor.
-    """
-    # assert symmetry and shape
-    assert np.shape(a)[-2:] == (3, 3)
 
 
 def symm(A):
@@ -400,43 +420,36 @@ def symm(A):
     This function computes the symmetric part of a fourth order Tensor A
     and returns a symmetric fourth order tensor S.
     """
-    S = np.zeros((*A.shape[:-4], 3, 3, 3, 3))
+    permutations = [
+        (0, 1, 2, 3),
+        (1, 0, 2, 3),
+        (0, 1, 3, 2),
+        (1, 0, 3, 2),
+        (2, 3, 0, 1),
+        (3, 2, 0, 1),
+        (2, 3, 1, 0),
+        (3, 2, 1, 0),
+        (0, 2, 1, 3),
+        (2, 0, 1, 3),
+        (0, 2, 3, 1),
+        (2, 0, 3, 1),
+        (1, 3, 0, 2),
+        (3, 1, 0, 2),
+        (1, 3, 2, 0),
+        (3, 1, 2, 0),
+        (0, 3, 1, 2),
+        (3, 0, 1, 2),
+        (0, 3, 2, 1),
+        (3, 0, 2, 1),
+        (1, 2, 0, 3),
+        (2, 1, 0, 3),
+        (1, 2, 3, 0),
+        (2, 1, 3, 0),
+    ]
 
-    # Einsteins summation
-    for i in range(3):
-        for j in range(3):
-            for k in range(3):
-                for l in range(3):
-                    # sum of all permutations divided by 4!=24
-                    S[..., i, j, k, l] = (
-                        1.0
-                        / 24.0
-                        * (
-                            A[..., i, j, k, l]
-                            + A[..., j, i, k, l]
-                            + A[..., i, j, l, k]
-                            + A[..., j, i, l, k]
-                            + A[..., k, l, i, j]
-                            + A[..., l, k, i, j]
-                            + A[..., k, l, j, i]
-                            + A[..., l, k, j, i]
-                            + A[..., i, k, j, l]
-                            + A[..., k, i, j, l]
-                            + A[..., i, k, l, j]
-                            + A[..., k, i, l, j]
-                            + A[..., j, l, i, k]
-                            + A[..., l, j, i, k]
-                            + A[..., j, l, k, i]
-                            + A[..., l, j, k, i]
-                            + A[..., i, l, j, k]
-                            + A[..., l, i, j, k]
-                            + A[..., i, l, k, j]
-                            + A[..., l, i, k, j]
-                            + A[..., j, k, i, l]
-                            + A[..., k, j, i, l]
-                            + A[..., j, k, l, i]
-                            + A[..., k, j, l, i]
-                        )
-                    )
+    S = sum(
+        jnp.einsum(A, [Ellipsis] + list(perm))
+        for perm in permutations
+    ) / 24.0
+
     return S
-
