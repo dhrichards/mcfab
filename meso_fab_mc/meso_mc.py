@@ -159,11 +159,13 @@ class solver:
 
 
 
-    def solve_constant(self,gradu,dt,tmax,x,method='Taylor',integrator='ImprovedEuler',**kwargs):
+    def solve_constant(self,gradu,dt,tmax,x,**kwargs):
         self.t  = np.arange(0,tmax,dt)
         self.nsteps = len(self.t)
 
         self.gradu_measures(gradu)
+
+
         
         
         if np.isscalar(x):
@@ -174,7 +176,7 @@ class solver:
             self.beta = x[2]*self.effectiveSR
        
        
-        if method == 'Static' or method == 'C':
+        if self.method == 'Static' or self.method == 'C':
             self.sachs = Static(**kwargs)
 
 

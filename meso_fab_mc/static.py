@@ -4,7 +4,7 @@ I = np.eye(3)
 
 
 class Static:
-    def __init__(self,gamma=1,beta=0.04,eta=1,alpha=0.04):
+    def __init__(self,gamma=1,beta=0.04,eta=1,alpha=1):
         self.gamma = gamma
         self.beta = beta
         self.eta = eta

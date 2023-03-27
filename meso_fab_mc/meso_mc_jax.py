@@ -125,16 +125,14 @@ def add_delete(n,m):
 
 
 
-def ImprovedEuler(n,m,gradu,Dstar,x,dt,key):
+def ImprovedEuler(n,m,D,W,Dstar,x,dt,key):
     """Variation of the improved Euler method for SDE
     https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_method_(SDE)"""
     
-    D,W,D2,effectiveSR = gradu_measures(gradu)
-    Dstar = D[jnp.newaxis,:,:]
 
     iota = x[0]
-    lamb = x[1]*effectiveSR
-    beta = x[2]*effectiveSR
+    lamb = x[1]
+    beta = x[2]
 
 
     k1 = v_star(n,Dstar,W,iota)*dt 
@@ -153,60 +151,10 @@ def ImprovedEuler(n,m,gradu,Dstar,x,dt,key):
     return n,m
 
 
-
-
-
 def time(dt,tmax):
     t  = jnp.arange(0,tmax,dt)
     nsteps = len(t)
     return t,nsteps
-
-def iterate_taylor(nm,p):
-    n,m = nm
-
-    gradu,x,dt,key = p
-    
-
-    D = 0.5*(gradu + gradu.T)
-    Dstar = D[jnp.newaxis,:,:]
-
-    n,m = ImprovedEuler(n,m,gradu,Dstar,x,dt,key)
-    n,m = add_delete(n,m)
-    
-    return (n,m),nm
-
-def iterate_static(nm,p):
-    n,m = nm
-
-    a2 = a2calc(n,m)
-    a4 = a4calc(n,m)
-
-    gradu,x,dt,key = p
-    D = 0.5*(gradu + gradu.T)
-
-    Dstar = Dstarcalc(n,D,a2,a4)
-
-    n,m = ImprovedEuler(n,m,gradu,Dstar,x,dt,key)
-    n,m = add_delete(n,m)
-    
-    return (n,m),nm
-
-def iterate_c(nm,p):
-    n,m = nm
-
-    a2 = a2calc(n,m)
-    a4 = a4calc(n,m)
-
-    gradu,x,dt,key = p
-    D = 0.5*(gradu + gradu.T)
-
-    Dstar = Ccalc(D,)
-
-    n,m = ImprovedEuler(n,m,gradu,Dstar,x,dt,key)
-    n,m = add_delete(n,m)
-    
-    return (n,m),nm
-
 
 def tile_arrays(gradu,dt,tmax,x):
 
@@ -218,8 +166,44 @@ def tile_arrays(gradu,dt,tmax,x):
 
     return gradu_tile,dt_tile,x_tile
 
+def effectiveSR(D,Dstar):
+    D2 = jnp.einsum('ij,ji',D,D)
+    return jnp.sqrt(0.5*D2)
 
-def solve(npoints,gradu,dt,x):
+def normC(D,C):
+    C = C[0,...]
+    return jnp.sqrt(jnp.einsum('ij,ji->',C,C))
+
+def iterate(fabric,p):
+    n,m,a2,a4 = fabric
+
+    gradu,x,dt,key,mode,sr_type = p
+    
+
+    D = 0.5*(gradu + gradu.T)
+    W = 0.5*(gradu - gradu.T)
+
+    # Choose whether we use C or full orientation dependent Dstar
+    Dstar = jax.lax.cond(mode,Ccalc,Dstarcalc,n,D,a2,a4,x[3],x[4])
+
+    # Choose whether we multiply particles by effective SR or normC (as Elmer does)
+    SR = jax.lax.cond(sr_type,effectiveSR,normC,D,Dstar)
+
+    # Multiply lambda and beta by SR
+    x = x.at[1:3].set(x[1:3]*SR)
+
+    n,m = ImprovedEuler(n,m,D,W,Dstar,x[:3],dt,key)
+    n,m = add_delete(n,m)
+
+    a2 = a2calc(n,m)
+    a4 = a4calc(n,m)
+    
+    return (n,m,a2,a4),fabric
+
+
+
+
+def solve(npoints,gradu,dt,x,model='C',sr_type='SR'):
     """Solve the SDE using the lax scan function
     npoints is the number of particles
     gradu is the velocity gradient (nsteps,3,3))
@@ -228,7 +212,22 @@ def solve(npoints,gradu,dt,x):
 
     m = jnp.ones(npoints)
     n = random(npoints)
-    init_val = (n,m)
+
+    a2 = a2calc(n,m)
+    a4 = a4calc(n,m)
+    fabric_0 = (n,m,a2,a4)
+
+    if model == 'C':
+        modes = np.ones_like(dt)
+    else:
+        modes = np.zeros_like(dt)
+
+    if sr_type == 'SR':
+        sr_types = np.ones_like(dt)
+    else:
+        sr_types = np.zeros_like(dt)
+
+
     
     nsteps = gradu.shape[0]
 
@@ -236,28 +235,34 @@ def solve(npoints,gradu,dt,x):
     key = jax.random.PRNGKey(0)
     keys = jax.random.split(key,nsteps)
 
-    final, nm_vec = jax.lax.scan(iterate_taylor,init_val,(gradu,x,dt,keys))
-    return nm_vec
+    final, fabric = jax.lax.scan(iterate,fabric_0,(gradu,x,dt,keys,modes,sr_types))
+    return fabric
 
 
 
-
-        
-
-
-def params(T,effectiveSR=1):
-
-
+def Richards2021(T):
+    T[T<-30] = -30
     iota = 0.0259733*T + 1.95268104
     lambtilde = (0.00251776*T + 0.41244777)
     betatilde = (0.35182521*T + 12.17066493)
+    alpha = jnp.zeros_like(T)
+    ks = jnp.ones_like(T)
 
-    lamb = lambtilde*effectiveSR
-    beta = betatilde*effectiveSR
-
-    x = jnp.array([iota,lamb,beta])
+    x = jnp.array([iota,lambtilde,betatilde,alpha,ks])
     
     return x.T
+
+def Elmer(T):
+    iota = jnp.ones_like(T)
+    lambtilde = 2e-3 * jnp.exp(jnp.log(10)*T/10)
+    betatilde = jnp.zeros_like(T)
+    alpha = 0.06*jnp.ones_like(T)
+    ks = 10*jnp.ones_like(T)
+
+    x = jnp.array([iota,lambtilde,betatilde,alpha,ks])
+    
+    return x.T
+
 
 
 
@@ -305,6 +310,17 @@ def a4calc(n,m=1):
     # Calculate 4th order orientation tensor
     mnnnnn = jnp.einsum('...p,...pi,...pj,...pk,...pl->...ijklp',m,n,n,n,n)
     return jnp.mean(mnnnnn,axis=-1)
+
+
+def StrengthR(n,m):
+    # Defined from Castelnau et al. 1996
+    sum = m*jnp.sum(n,axis=0)
+    N = n.shape[0]
+
+    R = (2 * jnp.linalg.norm(sum,axis=1) -N)/N
+
+    return R
+
 
 
 

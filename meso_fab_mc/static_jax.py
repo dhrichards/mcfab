@@ -46,19 +46,24 @@ def Scalc(D,A2,A4,gamma,beta,eta):
     return S
     
 
-def Ccalc(D,A2,A4,gamma=1,beta=0.04,eta=1,alpha=0.04):
+def Ccalc(n,D,A2,A4,alpha,ks=1,gamma=1,beta=0.04,eta=1):
     # C based on Gillet-Chaulet 2006
     S = Scalc(D,A2,A4,gamma,beta,eta)
 
-    C = (1-alpha)*D + alpha*S/(2*eta)
-    return C[jnp.newaxis,:,:]
+    C = (1-alpha)*D + ks*alpha*S/(2*eta)
+    return jnp.tile(C,(n.shape[0],1,1))
 
-def Dstarcalc(n,D,A2,A4,gamma=1,beta=0.04,eta=1):
+def Dstarcalc(n,D,A2,A4,alpha,ks=1,gamma=1,beta=0.04,eta=1):
      
     S = Scalc(D,A2,A4,gamma,beta,eta)
     Fstar = fluidity_star(n,gamma,beta,eta)
     Dstar = jnp.einsum('pijkl,kl->pij',Fstar,S)
 
-    return Dstar
+    C = (1-alpha)*DTaylor(n,D,A2,A4) + ks*alpha*Dstar
+
+    return C
+
+def DTaylor(n,D,A2,A4):
+     return jnp.tile(D,(n.shape[0],1,1))
 
 
