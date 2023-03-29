@@ -46,18 +46,18 @@ def V_star(n,Dstar,W,iota):
 def GBM(n,m,D):
 
 
-    D2 = jnp.einsum('ij,ji',D,D)
+    D2 = jnp.einsum('pij,pji->p',D,D)
 
-    Dn = jnp.einsum('ij,pj->pi',D,n)
-    Dnn = jnp.einsum('ij,pj,pi->p',D,n,n)
+    Dn = jnp.einsum('pij,pj->pi',D,n)
+    Dnn = jnp.einsum('pij,pj,pi->p',D,n,n)
 
     Def = 5*(jnp.einsum('pi,pi->p',Dn,Dn) - Dnn**2)/D2
 
-    a2 = a2calc(n,m)
-    a4 = a4calc(n,m)
+    # a2 = a2calc(n,m)
+    # a4 = a4calc(n,m)
 
-    return Def - 5*(jnp.einsum('ij,ik,kj',D,D,a2) -\
-                        jnp.einsum('ij,kl,ijkl',D,D,a4))/D2
+    return Def #- 5*(jnp.einsum('ij,ik,kj',D,D,a2) -\
+                #        jnp.einsum('ij,kl,ijkl',D,D,a4))/D2
 
 
 def weiner(n,lamb,dt,key):
@@ -125,7 +125,7 @@ def add_delete(n,m):
 
 
 
-def ImprovedEuler(n,m,D,W,Dstar,x,dt,key):
+def ImprovedEuler(n,m,W,Dstar,x,dt,key):
     """Variation of the improved Euler method for SDE
     https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_method_(SDE)"""
     
@@ -138,8 +138,8 @@ def ImprovedEuler(n,m,D,W,Dstar,x,dt,key):
     k1 = v_star(n,Dstar,W,iota)*dt 
     k2 = v_star(n+k1,Dstar,W,iota)*dt 
     
-    m1 = m*(1+beta*GBM(n,m,D)*dt)
-    m2 = m*(1+beta*GBM(n+k1,m,D)*dt)
+    m1 = m*(1+beta*GBM(n,m,Dstar)*dt)
+    m2 = m*(1+beta*GBM(n+k1,m,Dstar)*dt)
     
 
     n = n + 0.5*(k1+k2) + weiner(n,lamb,dt,key)
@@ -192,7 +192,7 @@ def iterate(fabric,p):
     # Multiply lambda and beta by SR
     x = x.at[1:3].set(x[1:3]*SR)
 
-    n,m = ImprovedEuler(n,m,D,W,Dstar,x[:3],dt,key)
+    n,m = ImprovedEuler(n,m,W,Dstar,x[:3],dt,key)
     n,m = add_delete(n,m)
 
     a2 = a2calc(n,m)
