@@ -70,7 +70,7 @@ def weiner(n,lamb,dt,key):
     dt: float, time step
     sigma: float, standard deviation of the Gaussian distribution
     """
-    sigma = jnp.sqrt(2*lamb*dt)
+    sigma = jnp.sqrt(lamb*dt)
 
     noise = jax.random.normal(key, shape=(n.shape))*sigma
 
@@ -184,7 +184,7 @@ def iterate(fabric,p):
     W = 0.5*(gradu - gradu.T)
 
     # Choose whether we use C or full orientation dependent Dstar
-    Dstar = jax.lax.cond(mode,Ccalc,Dstarcalc,n,D,a2,a4,x[3],x[4])
+    Dstar = jax.lax.cond(mode,Ccalc,CcalcGOLF,n,D,a2,a4,x[3],x[4])
 
     # Choose whether we multiply particles by effective SR or normC (as Elmer does)
     SR = jax.lax.cond(sr_type,effectiveSR,normC,D,Dstar)
@@ -218,14 +218,14 @@ def solve(npoints,gradu,dt,x,model='C',sr_type='SR'):
     fabric_0 = (n,m,a2,a4)
 
     if model == 'C':
-        modes = np.ones_like(dt)
+        modes = jnp.ones_like(dt)
     else:
-        modes = np.zeros_like(dt)
+        modes = jnp.zeros_like(dt)
 
     if sr_type == 'SR':
-        sr_types = np.ones_like(dt)
+        sr_types = jnp.ones_like(dt)
     else:
-        sr_types = np.zeros_like(dt)
+        sr_types = jnp.zeros_like(dt)
 
 
     
@@ -243,7 +243,7 @@ def solve(npoints,gradu,dt,x,model='C',sr_type='SR'):
 def Richards2021(T):
     T[T<-30] = -30
     iota = 0.0259733*T + 1.95268104
-    lambtilde = (0.00251776*T + 0.41244777)
+    lambtilde = 2*(0.00251776*T + 0.41244777) #correction to agree with SpecCAF
     betatilde = (0.35182521*T + 12.17066493)
     alpha = jnp.zeros_like(T)
     ks = jnp.ones_like(T)
