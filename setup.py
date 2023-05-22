@@ -5,18 +5,18 @@ with open("README.md", 'r') as f:
 
 
 setup(
-    name='meso_fab_mc',
+    name='mcfab',
     version='0.1.0',    
-    description="Mesoscopic Monte-Carlo Fabric Evolution Model",
-    url='https://github.com/danrichards678/',
+    description="Monte-Carlo Fabric Evolution Model",
+    url='https://github.com/dhrichards/',
     author='Daniel Richards',
     author_email='danrichards678@gmail.com',
-    license='MIT',
+    license='GPL-3.0',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=['meso_fab_mc'],
-    package_data={'meso_fab_mc':['data/*']},
-    install_requires=['numpy','jax','jaxlib'                  
+    packages=['mcfab'],
+    package_data={'mcfab':['data/*']},
+    install_requires=['numpy','jax','jaxlib','jaxopt'                  
                       ],
     extras_require = {
         'harmonics': ['shtns','scipy']
@@ -24,7 +24,7 @@ setup(
 
     classifiers=[
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: MIT License',  
+        'License :: OSI Approved :: GPL-3.0 License',  
         'Operating System :: OS Independent',        
         'Programming Language :: Python :: 3',
     ],

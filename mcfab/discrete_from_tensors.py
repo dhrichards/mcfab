@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from .static_mc import a2calc,a4calc,random
+from .mcsolver import a2calc,a4calc,random
 import jax.scipy.optimize as jopt
 
 def build_discrete(a2,a4,npoints=10000):

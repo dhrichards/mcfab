@@ -1,4 +1,4 @@
-from .static_mc import *
+from .mcsolver import *
 from .measures import *
 from .discrete_from_tensors import *
 from .golf import *
