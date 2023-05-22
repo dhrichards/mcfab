@@ -15,11 +15,11 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=['meso_fab_mc'],
-    install_requires=['numpy',                     
+    package_data={'meso_fab_mc':['data/*']},
+    install_requires=['numpy','jax','jaxlib'                  
                       ],
     extras_require = {
-        'harmonics': ['shtns','scipy'],
-        'jax': ['jax','jaxlib']
+        'harmonics': ['shtns','scipy']
                     },
 
     classifiers=[
