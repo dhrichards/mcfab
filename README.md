@@ -12,14 +12,8 @@ $$ v_i = W_{ij}c_j - \iota_D(D_{ij}c_j - D_{jk}c_kc_jc_i) - \iota_S(\hat{S}_{ij}
 A number of rheologies are incoprated, such as Rathmann et al. (2021) and the GOLF rheology of Gillet-Chaulet et al. (2005). A parameter set which reproduces Richards et al. (2021) is also included.
 
 
-## Example usage
-
-```python
-import jax.numpy as jnp
-TODO
 
 
-```
 ## Installation
 
 The package requires JAX and JAXlib to be installed. Instructions can be found [here](https://jax.readthedocs.io/en/latest/). The package also depends on [jaxopt](https://github.com/google/jaxopt) if a fully non-linear flow law is used.
@@ -30,7 +24,13 @@ git clone https://github.com/dhrichards/mcfab.git
 cd mcfab
 pip install .
 ```
+## Example usage
 
+```python
+import jax.numpy as jnp
+TODO
+
+```
 
 ## References
 
