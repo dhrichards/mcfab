@@ -4,7 +4,7 @@ import numpy as np
 import jax
 from .measures import akcalc,GammaBetafromEnhancements
 
-def GolfStress(D,Ecc,Eca,n,m):
+def GolfStress(D,Ecc,Eca,n,m,power,alpha):
     
     a2 = akcalc(n,m,2)
     S = Golf(D,Ecc,Eca,a2)
@@ -19,6 +19,13 @@ def Golf(D,Ecc,Eca,a2):
     gamma,beta = GammaBetafromEnhancements(Ecc,Eca)
     #TODO: add this, currently fixed at Ecc=1, Eca=100
     fabric_grid = load_viscosity_data()
+
+    S = CalcS(D,fabric_grid,a2)
+    return S
+
+    
+
+def CalcS(D,fabric_grid,a2):
 
     eigvals, eigvecs = jnp.linalg.eigh(a2)
 

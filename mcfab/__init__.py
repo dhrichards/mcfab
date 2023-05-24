@@ -2,8 +2,9 @@ from .mcsolver import *
 from .measures import *
 from .discrete_from_tensors import *
 from .golf import *
-from .rathmann import *
+from .grainflowlaws import *
 from .parameters import *
+from .orthotropic import *
 
 try:
     import shtns,scipy

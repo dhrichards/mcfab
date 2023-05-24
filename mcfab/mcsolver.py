@@ -2,8 +2,9 @@ import jax.numpy as jnp
 import numpy as np
 import jax
 from .measures import *
-from .rathmann import Rathmann1,Rathmann3
+from .grainflowlaws import GrainRheo
 from .golf import GolfStress
+from .orthotropic import Orthotropic
 
 
 def v_star(n,W,D,S,x,inveta):
@@ -173,9 +174,11 @@ def iterate(fabric,p):
     # Calculate S dependent on flow law
     Ecc = x[4]
     Eca = x[5]
+    power = x[6]
+    alpha_rheo = x[7]
 
-    funcs = [Rathmann1, GolfStress, Rathmann3]
-    S,inveta = jax.lax.switch(flowlaw,funcs,D,Ecc,Eca,n,m)
+    funcs = [GrainRheo, GolfStress, Orthotropic]
+    S,inveta = jax.lax.switch(flowlaw,funcs,D,Ecc,Eca,n,m,power,alpha_rheo)
 
     # Choose whether we multiply particles by effective SR or normC (as Elmer does)
     SR = jax.lax.cond(sr_type,effectiveSR,normC,D,S)
@@ -206,8 +209,10 @@ def solve(npoints,gradu,dt,x,flowlaw='R1',sr_type='SR'):
     x[3] = beta
     x[4] = Ecc
     x[5] = Eca
+    x[6] = power
+    x[7] = alpha_rheo
     
-    flowlaws implemented: R1,R3,GOLF
+    flowlaws implemented: grain,ortho,golf
     sr_types implemented: SR, normC"""
     x = jnp.array(x,float)
 
@@ -220,11 +225,11 @@ def solve(npoints,gradu,dt,x,flowlaw='R1',sr_type='SR'):
     a4 = a4calc(n,m)
     fabric_0 = (n,m,a2,a4)
 
-    if flowlaw == 'R1':
+    if flowlaw == 'grain':
         flowlaws = jnp.zeros_like(dt,int)
-    elif flowlaw == 'GOLF':
+    elif flowlaw == 'golf':
         flowlaws = jnp.ones_like(dt,int)
-    elif flowlaw == 'R3':
+    elif flowlaw == 'ortho':
         flowlaws = jnp.ones_like(dt,int)*2
 
 
