@@ -4,10 +4,12 @@ from .grainflowlaws import Fluidity
 
 
 
-def Orthotropic(D,Ecc,Eca,c,m,power,alpha):
+def Orthotropic(D,Ecc,Eca,c,mf,power):
 
-    a2 = akcalc(c,m,2)
-    a4 = akcalc(c,m,4)
+    alpha = 0.0125 # hard-coded value from Rathmann et al. 2022
+
+    a2 = akcalc(c,mf,2)
+    a4 = akcalc(c,mf,4)
 
 
     _,m = jnp.linalg.eigh(a2)
@@ -47,7 +49,9 @@ def Orthotropic(D,Ecc,Eca,c,m,power,alpha):
     
     eta = eta**((1-power)/(2*power))
 
-    return S,eta
+    inveta = jnp.ones_like(mf)/eta
+
+    return S,inveta
 
 
 

@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 import jax
 from .measures import *
-from .grainflowlaws import GrainRheo
+from .grainflowlaws import GrainRheo,Sachs
 from .golf import GolfStress
 from .orthotropic import Orthotropic
 
@@ -175,10 +175,9 @@ def iterate(fabric,p):
     Ecc = x[4]
     Eca = x[5]
     power = x[6]
-    alpha_rheo = x[7]
 
-    funcs = [GrainRheo, GolfStress, Orthotropic]
-    S,inveta = jax.lax.switch(flowlaw,funcs,D,Ecc,Eca,n,m,power,alpha_rheo)
+    funcs = [Sachs, GolfStress, Orthotropic]
+    S,inveta = jax.lax.switch(flowlaw,funcs,D,Ecc,Eca,n,m,power)
 
     # Choose whether we multiply particles by effective SR or normC (as Elmer does)
     SR = jax.lax.cond(sr_type,effectiveSR,normC,D,S)
@@ -197,7 +196,7 @@ def iterate(fabric,p):
 
 
 
-def solve(npoints,gradu,dt,x,flowlaw='R1',sr_type='SR'):
+def solve(npoints,gradu,dt,x,flowlaw='Sachs',sr_type='SR'):
     """Solve the SDE using the lax scan function
     npoints is the number of particles
     gradu is the velocity gradient (nsteps,3,3))
@@ -210,7 +209,6 @@ def solve(npoints,gradu,dt,x,flowlaw='R1',sr_type='SR'):
     x[4] = Ecc
     x[5] = Eca
     x[6] = power
-    x[7] = alpha_rheo
     
     flowlaws implemented: grain,ortho,golf
     sr_types implemented: SR, normC"""
@@ -225,12 +223,12 @@ def solve(npoints,gradu,dt,x,flowlaw='R1',sr_type='SR'):
     a4 = a4calc(n,m)
     fabric_0 = (n,m,a2,a4)
 
-    if flowlaw == 'grain':
-        flowlaws = jnp.zeros_like(dt,int)
-    elif flowlaw == 'golf':
+    if flowlaw == 'Golf':
         flowlaws = jnp.ones_like(dt,int)
-    elif flowlaw == 'ortho':
+    elif flowlaw == 'Ortho':
         flowlaws = jnp.ones_like(dt,int)*2
+    else: # Sachs
+        flowlaws = jnp.zeros_like(dt,int)
 
 
     if sr_type == 'SR':

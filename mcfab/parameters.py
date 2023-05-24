@@ -13,8 +13,10 @@ def Richards2021(T):
 
     Ecc = jnp.ones_like(T)
     Eca = jnp.ones_like(T)
+    power = jnp.ones_like(T)
+    
 
-    x = jnp.array([iotaD,iotaS,lambtilde,betatilde,Ecc,Eca])
+    x = jnp.array([iotaD,iotaS,lambtilde,betatilde,Ecc,Eca,power])
     
     return x.T
 
@@ -28,8 +30,10 @@ def Richards2021Reduced(T,reduce=0.25):
 
     Ecc = jnp.ones_like(T)
     Eca = jnp.ones_like(T)
+    power = jnp.ones_like(T)
+    
 
-    x = jnp.array([iotaD,iotaS,lambtilde,betatilde,Ecc,Eca])
+    x = jnp.array([iotaD,iotaS,lambtilde,betatilde,Ecc,Eca,power])
     
     return x.T
 
@@ -40,8 +44,9 @@ def Elmer(T):
     betatilde = jnp.zeros_like(T)
     Ecc = jnp.ones_like(T)
     Eca = 25*jnp.ones_like(T)
+    power = jnp.ones_like(T)
 
-    x = jnp.array([iotaD,iotaS,lambtilde,betatilde,Ecc,Eca])
+    x = jnp.array([iotaD,iotaS,lambtilde,betatilde,Ecc,Eca,power])
     
     return x.T
 
@@ -50,27 +55,17 @@ def Martin2012():
     Eca = 10.0
     iotaD = 0.0
     iotaS = Eca/(0.4*Eca + 0.2*Ecc + 0.4)
+    power = 1.0
 
-    x = jnp.array([iotaD,iotaS,0.0,0.0,Ecc,Eca])
-
-    return x.T
-
-
-def TaylorClass(lamb=0.0,beta=0.0):
-    iotaD = 1.0
-    iotaS = 0.0
-    Ecc = 1.0
-    Eca = 1.0
-
-    x = jnp.array([iotaD,iotaS,lamb,beta,Ecc,Eca])
+    x = jnp.array([iotaD,iotaS,0.0,0.0,Ecc,Eca,power])
 
     return x.T
 
 
-def SachsClass(lamb=0.0,beta=0.0,Ecc=1.0,Eca=25.0,alpha=1.0):
+def GrainClass(alpha=1.0,lamb=0.0,beta=0.0,Ecc=1.0,Eca=25.0,power=1.0):
     iotaD = 1-alpha
     iotaS = alpha*Eca/(0.4*Eca + 0.2*Ecc + 0.4)
 
-    x = jnp.array([iotaD,iotaS,lamb,beta,Ecc,Eca])
+    x = jnp.array([iotaD,iotaS,lamb,beta,Ecc,Eca,power])
 
     return x.T

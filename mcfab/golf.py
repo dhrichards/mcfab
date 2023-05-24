@@ -4,7 +4,7 @@ import numpy as np
 import jax
 from .measures import akcalc,GammaBetafromEnhancements
 
-def GolfStress(D,Ecc,Eca,n,m,power,alpha):
+def GolfStress(D,Ecc,Eca,n,m,power):
     
     a2 = akcalc(n,m,2)
     S = Golf(D,Ecc,Eca,a2)
