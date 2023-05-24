@@ -1,6 +1,5 @@
 #%%
 import numpy as np
-import shtns
 from scipy.special import sph_harm
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
@@ -21,8 +20,7 @@ class BuildHarmonics:
         self.w = w
         self.L = L
         self.mmax = mmax
-        self.sh = shtns.sht(L,self.mmax)
-        self.f = self.sh.spec_array()
+        self.f = self.spec_array()
 
         self.theta = np.arccos(x[:,2])
         self.phi = np.arctan2(x[:,1],x[:,0])
@@ -30,10 +28,27 @@ class BuildHarmonics:
 
         for l in range(L+1):
             for m in range(0,min(l,mmax)+1,1):
-                self.f[self.sh.idx(l,m)] = self.sum_conj(l,m)
+                self.f[self.idx(l,m)] = self.sum_conj(l,m)
 
         self.f /= self.f[0]
 
+    def idx(self,l,m):
+        # spherical harmonic index without shtns
+        # so we can use it for indexing
+        return l**2 + l + m
+    
+    def spec_array(self):
+        # create spectral array without shtns
+        return np.zeros((self.L+1)**2,dtype=np.complex128)
+    
+    def synth(self,f,theta,phi):
+        # synthesize spherical harmonics from spectral array
+        fgrid = np.zeros_like(theta,dtype=np.complex128)
+        for l in range(self.L+1):
+            for m in range(0,min(l,self.mmax)+1,1):
+                fgrid += f[self.idx(l,m)] * sph_harm(m,l,phi,theta)
+        
+        return fgrid.real
 
 
     def sum_conj(self,l,m):
@@ -47,11 +62,18 @@ class BuildHarmonics:
     
 
     def grid(self,hemisphere=False):
-        nlats, nlons = self.sh.set_grid(100,100,\
-                shtns.SHT_PHI_CONTIGUOUS,1.e-10)
+
+        nlat = 100
+        nlon = 100
+        theta_vals = np.linspace(0,np.pi,nlat)
+        phi_vals = np.linspace(0,2*np.pi,nlon)
+
+        #make phi contiguous so it includes 2pi
+        phi_vals = np.append(phi_vals,2*np.pi)
+        phi,theta = np.meshgrid(phi_vals,theta_vals)
+
     
-        theta_vals = np.arccos(self.sh.cos_theta)
-        phi_vals = (2.0*np.pi/nlons)*np.arange(nlons)
+
 
         ra,dec = decra_from_polar(phi_vals,theta_vals)
 
@@ -59,15 +81,15 @@ class BuildHarmonics:
         X, Y = np.meshgrid(ra, dec)
         
 
-        fgrid = self.sh.synth(self.f)
-
+        fgrid = self.synth(self.f,theta,phi)
+                           
 
         if hemisphere:
             
 
-            fgrid = fgrid[0:nlats//2,:]
-            X = X[0:nlats//2,:]
-            Y = Y[0:nlats//2,:]
+            fgrid = fgrid[0:nlat//2,:]
+            X = X[0:nlat//2,:]
+            Y = Y[0:nlat//2,:]
 
         return X,Y,fgrid
     
@@ -116,7 +138,7 @@ class BuildHarmonics:
         for l in range(0,self.L+1,2):
             Sff = 0*Sff
             for m in range(0,l+1,1):
-                Sff=Sff+np.abs(self.f[self.sh.idx(l,abs(m))])**2
+                Sff=Sff+np.abs(self.f[self.idx(l,abs(m))])**2
             J=J+Sff
         return J
     

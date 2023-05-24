@@ -7,7 +7,7 @@ from .parameters import *
 from .orthotropic import *
 
 try:
-    import shtns,scipy
+    import scipy,matplotlib,cartopy
     from .buildharmonics import BuildHarmonics
 except ImportError:
     pass
